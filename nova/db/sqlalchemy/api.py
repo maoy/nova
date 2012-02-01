@@ -4640,3 +4640,81 @@ def instance_fault_get_by_instance_uuids(context, instance_uuids):
         output[row['instance_uuid']].append(data)
 
     return output
+
+
+def task_create(context, values):
+    task_ref = models.Task()
+    task_ref.update(values)
+    task_ref.save()
+    return task_ref
+
+
+def task_update(context, task_id, values):
+    session = get_session()
+    with session.begin():
+        task_ref = task_get(context, task_id, session=session)
+        if "_appendlog" in values:
+            # Note(maoy): special treatment for append case to avoid
+            # retrieve from db too many times
+            record = values["_appendlog"]
+            execlog = utils.loads(task_ref["execlog"])
+            execlog.append(record)
+            del values["_appendlog"]
+            values["execlog"] = utils.dumps(execlog)
+        task_ref.update(values)
+        task_ref.save(session=session)
+
+
+def task_get(context, task_id, session=None):
+    result = model_query(context, models.Task, session=session).\
+                     filter_by(id=task_id).\
+                     first()
+    if not result:
+        raise exception.TaskNotFound(task_id=task_id)
+
+    return result
+
+
+def task_get_all(context):
+    query = model_query(context, models.Task)
+    return query.all()
+
+
+def lock_create(context, values):
+    lock_ref = models.ResourceLock()
+    lock_ref.update(values)
+    lock_ref.save()
+    return lock_ref
+
+
+def lock_update(context, lock_id, values):
+    session = get_session()
+    with session.begin():
+        lock_ref = lock_get(context, lock_id, session=session)
+        lock_ref.update(values)
+        lock_ref.save(session=session)
+
+
+def lock_get(context, lock_id, session=None):
+    result = model_query(context, models.ResourceLock, session=session).\
+                     filter_by(id=lock_id).\
+                     first()
+    if not result:
+        raise exception.LockNotFound(lock_id=lock_id)
+
+    return result
+
+
+def lock_get_all(context):
+    query = model_query(context, models.ResourceLock)
+    return query.all()
+
+
+def lock_delete_all(context, task_id):
+    if task_id is None:
+        return  # TODO(maoy): some weird workaround for now
+    session = get_session()
+    with session.begin():
+        session.query(models.ResourceLock).\
+                     filter_by(tid=task_id).\
+                     delete()

@@ -868,6 +868,14 @@ class Duplicate(NovaException):
     pass
 
 
+class ResourceBusy(NovaException):
+    message = _("Resource busy")
+
+
+class TimeoutError(NovaException):
+    message = _("Timeout while waiting for the lock")
+
+
 class KeyPairExists(Duplicate):
     message = _("Key pair %(key_name)s already exists.")
 
@@ -1076,3 +1084,11 @@ def get_context_from_function_and_args(function, args, kwargs):
             return arg
 
     return None
+
+
+class TaskNotFound(NotFound):
+    message = _("Task %(task_id)s could not be found.")
+
+
+class LockNotFound(NotFound):
+    message = _("Lock %(lock_id)s could not be found.")

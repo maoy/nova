@@ -74,6 +74,9 @@ class FakeNetworkManager(network_manager.NetworkManager):
     inherited service cruft and just perform unit tests.
     """
 
+    service_name = "network"
+    host = "fake"
+
     class FakeDB:
         vifs = [{'id': 0,
                  'instance_id': 0,
