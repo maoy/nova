@@ -94,4 +94,31 @@ BEGIN TRANSACTION;
 
     DROP TABLE block_device_mapping_backup;
 
+    CREATE TABLE tasks (
+        created_at DATETIME,
+        updated_at DATETIME,
+        deleted_at DATETIME,
+        deleted BOOLEAN,
+        id INTEGER NOT NULL,
+        depth INTEGER NOT NULL,
+        state VARCHAR(255),
+        context VARCHAR(255),
+        execlog TEXT,
+        info TEXT,
+        PRIMARY KEY (id)
+    );
+
+    CREATE TABLE locks (
+        created_at DATETIME,
+        updated_at DATETIME,
+        deleted_at DATETIME,
+        deleted BOOLEAN,
+        id INTEGER NOT NULL,
+        name VARCHAR(255),
+        tid INTEGER,
+        style INTEGER,
+        PRIMARY KEY (id)
+    );
+
+
 COMMIT;

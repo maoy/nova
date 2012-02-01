@@ -129,7 +129,7 @@ def multicall(context, topic, msg, timeout=None):
     """Invoke a remote method and get back an iterator.
 
     In this case, the remote method will be returning multiple values in
-    separate messages, so the return values can be processed as the come in via
+    separate messages, so the return values can be processed as they come in via
     an iterator.
 
     :param context: Information that identifies the user that has made this

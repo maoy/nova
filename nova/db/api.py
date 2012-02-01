@@ -1787,3 +1787,36 @@ def instance_fault_create(context, values):
 def instance_fault_get_by_instance_uuids(context, instance_uuids):
     """Get all instance faults for the provided instance_uuids."""
     return IMPL.instance_fault_get_by_instance_uuids(context, instance_uuids)
+
+
+#######
+def task_create(context, values):
+    return IMPL.task_create(context, values)
+
+
+def task_update(context, task_id, values):
+    return IMPL.task_update(context, task_id, values)
+
+def task_get(context, task_id, session=None):
+    return IMPL.task_get(context, task_id)
+
+
+def task_get_all(context):
+    return IMPL.task_get_all(context)
+
+
+def lock_create(context, values):
+    return IMPL.lock_create(context, values)
+
+def lock_update(context, lock_id, values):
+    return IMPL.lock_update(context, lock_id, values)
+
+
+def lock_get(context, lock_id):
+    return IMPL.lock_get(context, lock_id)
+
+def lock_get_all(context):
+    return IMPL.lock_get_all(context)
+
+def lock_delete_all(context, task_id):
+    return IMPL.lock_delete_all(context, task_id)

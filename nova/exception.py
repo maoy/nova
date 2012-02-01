@@ -868,6 +868,8 @@ class RotationRequiredForBackup(NovaException):
 class Duplicate(NovaException):
     pass
 
+class ResourceBusy(NovaException):
+    message = _("Resource busy")
 
 class KeyPairExists(Duplicate):
     message = _("Key pair %(key_name)s already exists.")
@@ -1060,3 +1062,10 @@ class InvalidInstanceIDMalformed(Invalid):
 
 class CouldNotFetchImage(NovaException):
     message = _("Could not fetch image %(image)s")
+
+class TaskNotFound(NotFound):
+    message = _("Task %(task_id)s could not be found.")
+
+class LockNotFound(NotFound):
+    message = _("Lock %(lock_id)s could not be found.")
+

@@ -636,7 +636,7 @@ class Connection(object):
                 return
 
     def consume_in_thread(self):
-        """Consumer from all queues/consumers in a greenthread"""
+        """Consumer from all queues/consumers in a green thread"""
         def _consumer_thread():
             try:
                 self.consume()

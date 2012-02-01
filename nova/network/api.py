@@ -151,7 +151,8 @@ class API(base.Base):
         rpc.cast(context,
                  FLAGS.network_topic,
                  {'method': 'disassociate_floating_ip',
-                  'args': {'address': address}})
+                  'args': {'address': address,
+                           'affect_auto_assigned': affect_auto_assigned}})
 
     def allocate_for_instance(self, context, instance, **kwargs):
         """Allocates all network structures for an instance.

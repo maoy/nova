@@ -998,7 +998,6 @@ class InstanceFault(BASE, NovaBase):
     message = Column(String(255))
     details = Column(Text)
 
-
 def register_models():
     """Register Models and create metadata.
 
@@ -1040,7 +1039,32 @@ def register_models():
               VolumeMetadata,
               VolumeTypeExtraSpecs,
               VolumeTypes,
+              # new here
+              Task,
+              ResourceLock,
               )
     engine = create_engine(FLAGS.sql_connection, echo=False)
     for model in models:
+        assert False
         model.metadata.create_all(engine)
+
+class Task(BASE, NovaBase):
+    """Represents a Task."""
+
+    __tablename__ = 'tasks'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    depth = Column(Integer) # stack depth
+    state = Column(String(255))
+    context = Column(String(255))
+    execlog = Column(Text) # json formatted list [{}, {}...]
+    info = Column(Text) # task specific opaque state
+    
+
+class ResourceLock(BASE, NovaBase):
+    """Represents a lock."""
+    __tablename__ = 'locks'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255))
+    tid = Column(Integer)
+    style = Column(Integer) # e.g. read only, or exclusive
+

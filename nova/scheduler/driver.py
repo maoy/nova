@@ -31,9 +31,8 @@ from nova import log as logging
 from nova.openstack.common import cfg
 from nova.openstack.common import importutils
 from nova import rpc
-from nova.rpc import common as rpc_common
 from nova import utils
-
+from nova.orch import task
 
 LOG = logging.getLogger(__name__)
 
@@ -59,10 +58,16 @@ def cast_to_volume_host(context, host, method, update_db=True, **kwargs):
             now = utils.utcnow()
             db.volume_update(context, volume_id,
                     {'host': host, 'scheduled_at': now})
+    task.ensure_task(context, info="schedule_volume")
+    try:
+        task.acquire_lock(context, kwargs.get("volume_id", None))
+    except exception.ResourceBusy:
+        raise
     rpc.cast(context,
             db.queue_get_for(context, 'volume', host),
             {"method": method, "args": kwargs})
     LOG.debug(_("Casted '%(method)s' to volume '%(host)s'") % locals())
+    context.task_id = None # clear it to fork next
 
 
 def cast_to_compute_host(context, host, method, update_db=True, **kwargs):
@@ -76,19 +81,34 @@ def cast_to_compute_host(context, host, method, update_db=True, **kwargs):
             now = utils.utcnow()
             db.instance_update(context, instance_uuid,
                     {'host': host, 'scheduled_at': now})
+    # For each instance, we create a task
+    task.ensure_task(context, info="schedule_run_instance")
+    try:
+        task.acquire_lock(context, kwargs.get("instance_uuid", None))
+    except exception.ResourceBusy:
+        raise
     rpc.cast(context,
             db.queue_get_for(context, 'compute', host),
             {"method": method, "args": kwargs})
     LOG.debug(_("Casted '%(method)s' to compute '%(host)s'") % locals())
+    context.task_id = None # clear it to fork next
 
 
 def cast_to_network_host(context, host, method, update_db=False, **kwargs):
     """Cast request to a network host queue"""
 
+    task.ensure_task(context, info="schedule_network")
+    try:
+        #task.acquire_lock(context, kwargs["volume_id"])
+        pass
+    except exception.ResourceBusy:
+        raise
+
     rpc.cast(context,
             db.queue_get_for(context, 'network', host),
             {"method": method, "args": kwargs})
     LOG.debug(_("Casted '%(method)s' to network '%(host)s'") % locals())
+    context.task_id = None # clear it to fork next
 
 
 def cast_to_host(context, topic, host, method, update_db=True, **kwargs):

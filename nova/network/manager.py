@@ -69,6 +69,7 @@ from nova import quota
 from nova import utils
 from nova import rpc
 
+from nova.orch import task
 
 LOG = logging.getLogger(__name__)
 
@@ -164,7 +165,7 @@ class AddressAlreadyAllocated(exception.Error):
 
 
 class RPCAllocateFixedIP(object):
-    """Mixin class originally for FlatDCHP and VLAN network managers.
+    """Mixin class originally for FlatDHCP and VLAN network managers.
 
     used since they share code to RPC.call allocate_fixed_ip on the
     correct network host to configure dnsmasq
@@ -224,6 +225,7 @@ class RPCAllocateFixedIP(object):
         network = self._get_network_by_id(context, network_id)
         return self.allocate_fixed_ip(context, instance_id, network, **kwargs)
 
+    @task.dec_task_method
     def deallocate_fixed_ip(self, context, address, host, **kwargs):
         """Call the superclass deallocate_fixed_ip if i'm the correct host
         otherwise cast to the correct host"""
@@ -300,6 +302,7 @@ class FloatingIP(object):
                     LOG.debug(_('Interface %(interface)s not found'), locals())
                     raise exception.NoFloatingIpInterface(interface=interface)
 
+    @task.dec_task_method
     @wrap_check_policy
     def allocate_for_instance(self, context, **kwargs):
         """Handles allocating the floating IP resources for an instance.
@@ -308,6 +311,7 @@ class FloatingIP(object):
 
         rpc.called by network_api
         """
+        #task.update_task_info(context, "network:allocate_for_instance")
         instance_id = kwargs.get('instance_id')
         project_id = kwargs.get('project_id')
         requested_networks = kwargs.get('requested_networks')
@@ -335,6 +339,7 @@ class FloatingIP(object):
                                        affect_auto_assigned=True)
         return nw_info
 
+    @task.dec_task_method
     @wrap_check_policy
     def deallocate_for_instance(self, context, **kwargs):
         """Handles deallocating floating IP resources for an instance.
@@ -392,6 +397,7 @@ class FloatingIP(object):
                            'project': context.project_id})
                 raise exception.NotAuthorized()
 
+    @task.dec_task_method
     @wrap_check_policy
     def allocate_floating_ip(self, context, project_id, pool=None):
         """Gets a floating ip from the pool."""
@@ -406,6 +412,7 @@ class FloatingIP(object):
                                                     project_id,
                                                     pool)
 
+    @task.dec_task_method
     @wrap_check_policy
     def deallocate_floating_ip(self, context, address,
                                affect_auto_assigned=False):
@@ -430,13 +437,14 @@ class FloatingIP(object):
 
         self.db.floating_ip_deallocate(context, address)
 
+    @task.dec_task_method
     @wrap_check_policy
     def associate_floating_ip(self, context, floating_address, fixed_address,
                               affect_auto_assigned=False):
         """Associates a floating ip with a fixed ip.
 
         Makes sure everything makes sense then calls _associate_floating_ip,
-        rpc'ing to correct host if i'm not it.
+        rpc'ing to correct host if I'm not it.
         """
         floating_ip = self.db.floating_ip_get_by_address(context,
                                                          floating_address)
@@ -444,7 +452,7 @@ class FloatingIP(object):
         if not affect_auto_assigned and floating_ip.get('auto_assigned'):
             return
 
-        # make sure project ownz this floating ip (allocated)
+        # make sure project owns this floating ip (allocated)
         self._floating_ip_owned_by_project(context, floating_ip)
 
         # make sure floating ip isn't already associated
@@ -495,6 +503,7 @@ class FloatingIP(object):
                 LOG.error(_('Interface %(interface)s not found'), locals())
                 raise exception.NoFloatingIpInterface(interface=interface)
 
+    @task.dec_task_method
     @wrap_check_policy
     def disassociate_floating_ip(self, context, address,
                                  affect_auto_assigned=False):
@@ -764,6 +773,7 @@ class NetworkManager(manager.SchedulerDependentManager):
             self._setup_network_on_host(ctxt, network)
 
     @manager.periodic_task
+    @task.dec_task_method
     def _disassociate_stale_fixed_ips(self, context):
         if self.timeout_fixed_ips:
             now = utils.utcnow()
@@ -877,6 +887,7 @@ class NetworkManager(manager.SchedulerDependentManager):
         return [network for network in networks if
                 not network['vlan']]
 
+    @task.dec_task_method
     @wrap_check_policy
     def allocate_for_instance(self, context, **kwargs):
         """Handles allocating the various network resources for an instance.
@@ -906,6 +917,7 @@ class NetworkManager(manager.SchedulerDependentManager):
         return self.get_instance_nw_info(context, instance_id, instance_uuid,
                                          rxtx_factor, host)
 
+    @task.dec_task_method
     @wrap_check_policy
     def deallocate_for_instance(self, context, **kwargs):
         """Handles deallocating various network resources for an instance.
@@ -1159,6 +1171,7 @@ class NetworkManager(manager.SchedulerDependentManager):
         else:
             return True
 
+    @task.dec_task_method
     def allocate_fixed_ip(self, context, instance_id, network, **kwargs):
         """Gets a fixed ip from the pool."""
         # TODO(vish): when this is called by compute, we can associate compute
@@ -1198,6 +1211,7 @@ class NetworkManager(manager.SchedulerDependentManager):
         self._setup_network_on_host(context, network)
         return address
 
+    @task.dec_task_method
     def deallocate_fixed_ip(self, context, address, **kwargs):
         """Returns a fixed ip to the pool."""
         fixed_ip_ref = self.db.fixed_ip_get_by_address(context, address)
@@ -1239,6 +1253,7 @@ class NetworkManager(manager.SchedulerDependentManager):
             #             callback will get called by nova-dhcpbridge.
             self.driver.release_dhcp(dev, address, vif['address'])
 
+    @task.dec_task_method
     def lease_fixed_ip(self, context, address):
         """Called by dhcp-bridge when ip is leased."""
         LOG.debug(_('Leased IP |%(address)s|'), locals(), context=context)
@@ -1256,6 +1271,7 @@ class NetworkManager(manager.SchedulerDependentManager):
             LOG.warn(_('IP |%s| leased that isn\'t allocated'), address,
                      context=context)
 
+    @task.dec_task_method
     def release_fixed_ip(self, context, address):
         """Called by dhcp-bridge when ip is released."""
         LOG.debug(_('Released IP |%(address)s|'), locals(), context=context)
@@ -1273,6 +1289,7 @@ class NetworkManager(manager.SchedulerDependentManager):
         if not fixed_ip['allocated']:
             self.db.fixed_ip_disassociate(context, address)
 
+    @task.dec_task_method
     def create_networks(self, context, label, cidr, multi_host, num_networks,
                         network_size, cidr_v6, gateway, gateway_v6, bridge,
                         bridge_interface, dns1=None, dns2=None,
@@ -1409,6 +1426,7 @@ class NetworkManager(manager.SchedulerDependentManager):
                 self._create_fixed_ips(context, network['id'], fixed_cidr)
         return networks
 
+    @task.dec_task_method
     @wrap_check_policy
     def delete_network(self, context, fixed_range, uuid,
             require_disassociated=True):
@@ -1463,6 +1481,7 @@ class NetworkManager(manager.SchedulerDependentManager):
         """Calls allocate_fixed_ip once for each network."""
         raise NotImplementedError()
 
+    @task.dec_task_method
     def setup_networks_on_host(self, context, instance_id, host,
                                teardown=False):
         """calls setup/teardown on network hosts associated with an instance"""
@@ -1499,6 +1518,7 @@ class NetworkManager(manager.SchedulerDependentManager):
         # wait for all of the setups (if any) to finish
         green_pool.waitall()
 
+    @task.dec_task_method
     def rpc_setup_network_on_host(self, context, network_id, teardown):
         if teardown:
             call_func = self._teardown_network_on_host
@@ -1773,6 +1793,7 @@ class VlanManager(RPCAllocateFixedIP, FloatingIP, NetworkManager):
         NetworkManager.init_host(self)
         self.init_host_floating_ips()
 
+    @task.dec_task_method
     def allocate_fixed_ip(self, context, instance_id, network, **kwargs):
         """Gets a fixed ip from the pool."""
         if kwargs.get('vpn', None):
@@ -1821,6 +1842,7 @@ class VlanManager(RPCAllocateFixedIP, FloatingIP, NetworkManager):
             networks = self.db.project_get_networks(context, project_id)
         return networks
 
+    @task.dec_task_method
     def create_networks(self, context, **kwargs):
         """Create networks based on parameters."""
         # Check that num_networks + vlan_start is not > 4094, fixes lp708025

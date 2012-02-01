@@ -75,6 +75,7 @@ def db_sync(version=None):
 
     current_version = db_version()
     repository = _find_migrate_repo()
+    #assert current_version == None, "*******************************************%r" % repository
     if version is None or version > current_version:
         return versioning_api.upgrade(get_engine(), repository, version)
     else:

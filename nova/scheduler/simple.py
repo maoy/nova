@@ -29,6 +29,7 @@ from nova.scheduler import chance
 from nova.scheduler import driver
 from nova import utils
 
+from nova.orch import task
 
 simple_scheduler_opts = [
     cfg.IntOpt("max_cores",

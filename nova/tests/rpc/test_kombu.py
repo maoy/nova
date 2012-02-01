@@ -275,6 +275,7 @@ class RpcKombuTestCase(common.BaseRpcAMQPTestCase):
 
         self.assertEqual(info['called'], 2)
 
+    @test.skip_test("this test gets stuck on ubuntu 12.04")
     def test_iterconsume_errors_will_reconnect(self):
         conn = self.rpc.Connection(FLAGS)
         message = 'reconnect test message'
