@@ -49,6 +49,8 @@ import sys
 import uuid
 
 from eventlet import greenthread
+from eventlet import tpool
+
 from xml.dom import minidom
 from xml.etree import ElementTree
 
@@ -153,6 +155,10 @@ libvirt_opts = [
                help='Number of seconds to wait for instance to shut down after'
                     ' soft reboot request is made. We fall back to hard reboot'
                     ' if instance does not shutdown within this window.'),
+    cfg.BoolOpt('libvirt_nonblocking',
+                default=True,
+                help='Use separated OS thread pool to realize non-blocking' 
+                     ' libvirt calls')
     ]
 
 FLAGS = flags.FLAGS
@@ -186,6 +192,31 @@ def _get_eph_disk(ephemeral):
     return 'disk.eph' + str(ephemeral['num'])
 
 
+class NonblockMixin(object):
+    """A Mixin implementation that converts every call to be 
+    executed in the thread pool (tpool)
+    """
+    def __init__(self, real_object):
+        self._object = real_object
+        
+    def __getattr__(self, name):
+        func = getattr(self._object, name)
+        return functools.partial(tpool.execute, func)
+
+class NonblockVirDomain(NonblockMixin):
+    """A proxy object for virDomain"""
+
+class NonblockVirConnection(NonblockMixin):
+    """A Proxy object for virConnect"""
+    
+    def lookupByName(self, name):
+        domain = tpool.execute(self._object.lookupByName, name)
+        return NonblockVirDomain(domain)
+    
+    def lookupByID(self, id):
+        domain = tpool.execute(self._object.lookupByID, id)
+        return NonblockVirDomain(domain)
+    
 class LibvirtConnection(driver.ComputeDriver):
 
     def __init__(self, read_only):
@@ -248,9 +279,15 @@ class LibvirtConnection(driver.ComputeDriver):
     def _get_connection(self):
         if not self._wrapped_conn or not self._test_connection():
             LOG.debug(_('Connecting to libvirt: %s'), self.uri)
-            self._wrapped_conn = self._connect(self.uri,
+            if not FLAGS.libvirt_nonblocking:
+                self._wrapped_conn = self._connect(self.uri,
                                                self.read_only)
+            else:
+                self._wrapped_conn = NonblockVirConnection(
+                    tpool.execute(self._connect, self.uri,
+                                  self.read_only))
         return self._wrapped_conn
+    
     _conn = property(_get_connection)
 
     def _test_connection(self):
