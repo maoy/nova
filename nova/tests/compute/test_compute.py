@@ -1513,7 +1513,7 @@ class ComputeTestCase(BaseTestCase):
                         'state': power_state.PAUSED})
         instance_id = instance['id']
         i_ref = db.instance_get(c, instance_id)
-        db.instance_update(c, i_ref['id'], {'vm_state': vm_states.MIGRATING,
+        db.instance_update(c, i_ref['id'], {'task_state': task_states.MIGRATING,
                                             'power_state': power_state.PAUSED})
         v_ref = db.volume_create(c, {'size': 1, 'instance_id': instance_id})
         fix_addr = db.fixed_ip_create(c, {'address': '1.1.1.1',
@@ -2465,7 +2465,7 @@ class ComputeAPITestCase(BaseTestCase):
         self.assertEqual(info['image_ref'], image_ref)
 
         instance = db.instance_get_by_uuid(self.context, instance_uuid)
-        self.assertEqual(instance['vm_state'], vm_states.REBUILDING)
+        self.assertEqual(instance['task_state'], task_states.REBUILDING)
         sys_metadata = db.instance_system_metadata_get(self.context,
                 instance_uuid)
         self.assertEqual(sys_metadata,

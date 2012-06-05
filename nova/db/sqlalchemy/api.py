@@ -504,8 +504,7 @@ def _get_host_utilization(context, host, ram_mb, disk_gb):
         free_ram_mb -= instance.memory_mb
         free_disk_gb -= instance.root_gb
         free_disk_gb -= instance.ephemeral_gb
-        if instance.vm_state in [vm_states.BUILDING, vm_states.REBUILDING,
-                                 vm_states.MIGRATING, vm_states.RESIZING]:
+        if instance.task_state is not None:
             work += 1
     return dict(free_ram_mb=free_ram_mb,
                 free_disk_gb=free_disk_gb,

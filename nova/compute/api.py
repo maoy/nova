@@ -1420,11 +1420,10 @@ class API(base.Base):
 
         self.update(context,
                     instance,
-                    vm_state=vm_states.REBUILDING,
+                    task_state=task_states.REBUILDING,
                     # Unfortunately we need to set image_ref early,
                     # so API users can see it.
                     image_ref=image_href,
-                    task_state=None,
                     progress=0,
                     **kwargs)
 

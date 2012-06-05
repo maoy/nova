@@ -894,16 +894,14 @@ class ComputeManager(manager.SchedulerDependentManager):
         self._instance_update(context,
                               instance_uuid,
                               power_state=current_power_state,
-                              vm_state=vm_states.REBUILDING,
-                              task_state=None)
+                              task_state=task_states.REBUILDING)
 
         network_info = self._get_instance_nw_info(context, instance)
         self.driver.destroy(instance, self._legacy_nw_info(network_info))
 
         instance = self._instance_update(context,
                               instance_uuid,
-                              vm_state=vm_states.REBUILDING,
-                              task_state=task_states.BLOCK_DEVICE_MAPPING)
+                              task_state=task_states.REBUILD_BLOCK_DEVICE_MAPPING)
 
         instance.injected_files = kwargs.get('injected_files', [])
         network_info = self.network_api.get_instance_nw_info(context,
@@ -912,8 +910,7 @@ class ComputeManager(manager.SchedulerDependentManager):
 
         instance = self._instance_update(context,
                               instance_uuid,
-                              vm_state=vm_states.REBUILDING,
-                              task_state=task_states.SPAWNING)
+                              task_state=task_states.REBUILD_SPAWNING)
         # pull in new password here since the original password isn't in the db
         instance.admin_pass = kwargs.get('new_pass',
                 utils.generate_password(FLAGS.password_length))
@@ -2421,6 +2418,11 @@ class ComputeManager(manager.SchedulerDependentManager):
             # Allow other periodic tasks to do some work...
             greenthread.sleep(0)
             db_power_state = db_instance['power_state']
+            if db_instance['task_state'] is not None:
+                LOG.info(_("During sync_power_state the instance has a "
+                           "pending task. Skip"), instance=db_instance)
+                continue
+            # No pending tasks
             try:
                 vm_instance = self.driver.get_info(db_instance)
                 vm_power_state = vm_instance['state']
@@ -2446,18 +2448,6 @@ class ComputeManager(manager.SchedulerDependentManager):
                                    {'src': self.host,
                                     'dst': u['host']},
                                  instance=db_instance)
-                    elif (u['host'] == self.host and
-                          u['vm_state'] == vm_states.MIGRATING):
-                        # on the receiving end of nova-compute, it could happen
-                        # that the DB instance already report the new resident
-                        # but the actual VM has not showed up on the hypervisor
-                        # yet. In this case, let's allow the loop to continue
-                        # and run the state sync in a later round
-                        LOG.info(_("Instance is in the process of "
-                                   "migrating to this host. Wait next "
-                                   "sync_power cycle before setting "
-                                   "power state to NOSTATE"),
-                                   instance=db_instance)
                     else:
                         LOG.warn(_("Instance found in database but not "
                                    "known by hypervisor. Setting power "

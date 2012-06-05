@@ -58,3 +58,9 @@ UNRESCUING = 'unrescuing'
 DELETING = 'deleting'
 STOPPING = 'stopping'
 STARTING = 'starting'
+
+REBUILDING = 'rebuilding'
+REBUILD_BLOCK_DEVICE_MAPPING = "rebuild_block_device_mapping"
+REBUILD_SPAWNING = 'rebuild_spawning'
+
+MIGRATING = "migrating"

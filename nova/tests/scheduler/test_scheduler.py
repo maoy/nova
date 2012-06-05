@@ -25,6 +25,7 @@ from nova.compute import api as compute_api
 from nova.compute import power_state
 from nova.compute import rpcapi as compute_rpcapi
 from nova.compute import vm_states
+from nova.compute import task_states
 from nova import context
 from nova import db
 from nova import exception
@@ -455,7 +456,7 @@ class SchedulerTestCase(test.TestCase):
         self.driver._live_migration_common_check(self.context, instance,
                 dest, block_migration, disk_over_commit)
         db.instance_update_and_get_original(self.context, instance['id'],
-                {"vm_state": vm_states.MIGRATING}).AndReturn(
+                {"task_state": task_states.MIGRATING}).AndReturn(
                         (instance, instance))
 
         driver.cast_to_compute_host(self.context, instance['host'],
@@ -545,7 +546,7 @@ class SchedulerTestCase(test.TestCase):
                 ).AndReturn(True)
 
         db.instance_update_and_get_original(self.context, instance['id'],
-                {"vm_state": vm_states.MIGRATING}).AndReturn(
+                {"task_state": task_states.MIGRATING}).AndReturn(
                         (instance, instance))
 
         driver.cast_to_compute_host(self.context, instance['host'],

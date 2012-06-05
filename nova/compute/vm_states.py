@@ -25,7 +25,6 @@ better picture can be formed regarding the instance's health.
 
 ACTIVE = 'active'
 BUILDING = 'building'
-REBUILDING = 'rebuilding'
 
 PAUSED = 'paused'
 SUSPENDED = 'suspended'
@@ -35,7 +34,6 @@ DELETED = 'deleted'
 STOPPED = 'stopped'
 SOFT_DELETE = 'soft-delete'
 
-MIGRATING = 'migrating'
 RESIZING = 'resizing'
 
 ERROR = 'error'

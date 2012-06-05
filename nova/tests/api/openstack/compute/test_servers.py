@@ -1371,7 +1371,8 @@ class ServerStatusTest(test.TestCase):
         self.assertEqual(response['server']['status'], 'HARD_REBOOT')
 
     def test_rebuild(self):
-        response = self._get_with_state(vm_states.REBUILDING)
+        response = self._get_with_state(vm_states.ACTIVE,
+                                        task_states.REBUILDING)
         self.assertEqual(response['server']['status'], 'REBUILD')
 
     def test_rebuild_error(self):

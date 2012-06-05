@@ -49,21 +49,19 @@ _STATE_MAP = {
         task_states.REBOOTING_HARD: 'HARD_REBOOT',
         task_states.UPDATING_PASSWORD: 'PASSWORD',
         task_states.RESIZE_VERIFY: 'VERIFY_RESIZE',
+        task_states.REBUILDING: 'REBUILD',
+        task_states.REBUILD_BLOCK_DEVICE_MAPPING: 'REBUILD',
+        task_states.REBUILD_SPAWNING: 'REBUILD',
+        task_states.MIGRATING: 'MIGRATING',
     },
     vm_states.BUILDING: {
         'default': 'BUILD',
-    },
-    vm_states.REBUILDING: {
-        'default': 'REBUILD',
     },
     vm_states.STOPPED: {
         'default': 'STOPPED',
     },
     vm_states.SHUTOFF: {
         'default': 'SHUTOFF',
-    },
-    vm_states.MIGRATING: {
-        'default': 'MIGRATING',
     },
     vm_states.RESIZING: {
         'default': 'RESIZE',
