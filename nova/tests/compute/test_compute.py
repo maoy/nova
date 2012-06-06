@@ -1813,17 +1813,17 @@ class ComputeTestCase(BaseTestCase):
         self.assertEqual(call_info['get_nw_info'], 4)
 
     def test_poll_unconfirmed_resizes(self):
-        instances = [{'uuid': 'fake_uuid1', 'vm_state': vm_states.ACTIVE,
-                      'task_state': task_states.RESIZE_VERIFY},
+        instances = [{'uuid': 'fake_uuid1', 'vm_state': vm_states.RESIZED,
+                      'task_state': None},
                      {'uuid': 'noexist'},
                      {'uuid': 'fake_uuid2', 'vm_state': vm_states.ERROR,
-                      'task_state': task_states.RESIZE_VERIFY},
+                      'task_state': None},
                      {'uuid': 'fake_uuid3', 'vm_state': vm_states.ACTIVE,
                       'task_state': task_states.REBOOTING},
                      {'uuid': 'fake_uuid4', 'vm_state': vm_states.ACTIVE,
-                      'task_state': task_states.RESIZE_VERIFY},
+                      'task_state': None},
                      {'uuid': 'fake_uuid5', 'vm_state': vm_states.ACTIVE,
-                      'task_state': task_states.RESIZE_VERIFY}]
+                      'task_state': None}]
         expected_migration_status = {'fake_uuid1': 'confirmed',
                                      'noexist': 'error',
                                      'fake_uuid2': 'error',
@@ -2765,8 +2765,8 @@ class ComputeAPITestCase(BaseTestCase):
                  'status': 'finished'})
         # set the state that the instance gets when resize finishes
         db.instance_update(self.context, instance['uuid'],
-                           {'task_state': task_states.RESIZE_VERIFY,
-                            'vm_state': vm_states.ACTIVE})
+                           {'task_state': None,
+                            'vm_state': vm_states.RESIZED})
         instance = db.instance_get_by_uuid(context, instance['uuid'])
 
         self.compute_api.confirm_resize(context, instance)
@@ -2786,14 +2786,14 @@ class ComputeAPITestCase(BaseTestCase):
                  'status': 'finished'})
         # set the state that the instance gets when resize finishes
         db.instance_update(self.context, instance['uuid'],
-                           {'task_state': task_states.RESIZE_VERIFY,
-                            'vm_state': vm_states.ACTIVE})
+                           {'task_state': None,
+                            'vm_state': vm_states.RESIZED})
         instance = db.instance_get_by_uuid(context, instance['uuid'])
 
         self.compute_api.revert_resize(context, instance)
 
         instance = db.instance_get_by_uuid(context, instance['uuid'])
-        self.assertEqual(instance['vm_state'], vm_states.RESIZING)
+        self.assertEqual(instance['vm_state'], vm_states.RESIZED)
         self.assertEqual(instance['task_state'], task_states.RESIZE_REVERTING)
 
         self.compute.terminate_instance(context, instance['uuid'])

@@ -38,10 +38,10 @@ UPDATING_PASSWORD = 'updating_password'
 RESIZE_PREP = 'resize_prep'
 RESIZE_MIGRATING = 'resize_migrating'
 RESIZE_MIGRATED = 'resize_migrated'
+
 RESIZE_FINISH = 'resize_finish'
 RESIZE_REVERTING = 'resize_reverting'
 RESIZE_CONFIRMING = 'resize_confirming'
-RESIZE_VERIFY = 'resize_verify'
 
 REBOOTING = 'rebooting'
 REBOOTING_HARD = 'rebooting_hard'

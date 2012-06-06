@@ -1003,7 +1003,7 @@ class API(base.Base):
                         task_state=task_states.DELETING,
                         progress=0)
 
-            if instance['task_state'] == task_states.RESIZE_VERIFY:
+            if instance['vm_state'] == vm_states.RESIZED:
                 # If in the middle of a resize, use confirm_resize to
                 # ensure the original instance is cleaned up too
                 migration_ref = self.db.migration_get_by_instance_and_status(
@@ -1437,8 +1437,7 @@ class API(base.Base):
                 image_ref=image_href, orig_image_ref=orig_image_ref)
 
     @wrap_check_policy
-    @check_instance_state(vm_state=[vm_states.ACTIVE, vm_states.SHUTOFF],
-                          task_state=[task_states.RESIZE_VERIFY])
+    @check_instance_state(vm_state=[vm_states.RESIZED])
     def revert_resize(self, context, instance):
         """Reverts a resize, deleting the 'new' instance in the process."""
         context = context.elevated()
@@ -1450,7 +1449,6 @@ class API(base.Base):
 
         self.update(context,
                     instance,
-                    vm_state=vm_states.RESIZING,
                     task_state=task_states.RESIZE_REVERTING)
 
         self.compute_rpcapi.revert_resize(context,
@@ -1461,8 +1459,7 @@ class API(base.Base):
                                  {'status': 'reverted'})
 
     @wrap_check_policy
-    @check_instance_state(vm_state=[vm_states.ACTIVE, vm_states.SHUTOFF],
-                          task_state=[task_states.RESIZE_VERIFY])
+    @check_instance_state(vm_state=[vm_states.RESIZED])
     def confirm_resize(self, context, instance):
         """Confirms a migration/resize and deletes the 'old' instance."""
         context = context.elevated()
@@ -1524,7 +1521,6 @@ class API(base.Base):
 
         self.update(context,
                     instance,
-                    vm_state=vm_states.RESIZING,
                     task_state=task_states.RESIZE_PREP,
                     progress=0,
                     **kwargs)

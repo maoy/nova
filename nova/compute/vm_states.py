@@ -34,6 +34,6 @@ DELETED = 'deleted'
 STOPPED = 'stopped'
 SOFT_DELETE = 'soft-delete'
 
-RESIZING = 'resizing'
+RESIZED = 'resized'
 
 ERROR = 'error'

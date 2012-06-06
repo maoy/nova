@@ -76,10 +76,10 @@ _STATE_DESCRIPTION_MAP = {
     vm_states.SOFT_DELETE: inst_state.TERMINATED,
     vm_states.STOPPED: inst_state.STOPPED,
     vm_states.SHUTOFF: inst_state.SHUTOFF,
-    vm_states.RESIZING: inst_state.RESIZE,
     vm_states.PAUSED: inst_state.PAUSE,
     vm_states.SUSPENDED: inst_state.SUSPEND,
     vm_states.RESCUED: inst_state.RESCUE,
+    vm_states.RESIZED: inst_state.RESIZE,
 }
 
 

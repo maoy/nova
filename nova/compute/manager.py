@@ -1453,10 +1453,10 @@ class ComputeManager(manager.SchedulerDependentManager):
 
         instance_ref = self._instance_update(context,
                                           instance_ref.uuid,
-                                          vm_state=vm_states.ACTIVE,
+                                          vm_state=vm_states.RESIZED,
                                           host=migration_ref['dest_compute'],
                                           launched_at=utils.utcnow(),
-                                          task_state=task_states.RESIZE_VERIFY)
+                                          task_state=None)
 
         self.db.migration_update(context, migration_ref.id,
                                  {'status': 'finished'})
@@ -2337,9 +2337,10 @@ class ComputeManager(manager.SchedulerDependentManager):
                     _set_migration_to_error(migration_id, reason % locals(),
                                             instance=instance)
                     continue
-                if instance['task_state'] != task_states.RESIZE_VERIFY:
-                    state = instance['task_state']
-                    reason = _("In %(state)s task_state, not RESIZE_VERIFY")
+                if instance['vm_state'] != vm_states.RESIZED
+                    and instance['task_state'] != None:
+                    state = instance['vm_state']
+                    reason = _("In %(state)s vm_state, not RESIZED")
                     _set_migration_to_error(migration_id, reason % locals(),
                                             instance=instance)
                     continue

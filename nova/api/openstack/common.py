@@ -48,11 +48,14 @@ _STATE_MAP = {
         task_states.REBOOTING: 'REBOOT',
         task_states.REBOOTING_HARD: 'HARD_REBOOT',
         task_states.UPDATING_PASSWORD: 'PASSWORD',
-        task_states.RESIZE_VERIFY: 'VERIFY_RESIZE',
         task_states.REBUILDING: 'REBUILD',
         task_states.REBUILD_BLOCK_DEVICE_MAPPING: 'REBUILD',
         task_states.REBUILD_SPAWNING: 'REBUILD',
         task_states.MIGRATING: 'MIGRATING',
+        task_states.RESIZE_PREP: 'RESIZING',
+        task_states.RESIZE_MIGRATING: 'RESIZING',
+        task_states.RESIZE_MIGRATED: 'RESIZING',
+        task_states.RESIZE_FINISH: 'RESIZING',
     },
     vm_states.BUILDING: {
         'default': 'BUILD',
@@ -63,9 +66,10 @@ _STATE_MAP = {
     vm_states.SHUTOFF: {
         'default': 'SHUTOFF',
     },
-    vm_states.RESIZING: {
+    vm_states.RESIZED: {
         'default': 'RESIZE',
-        task_states.RESIZE_REVERTING: 'REVERT_RESIZE',
+        task_states.RESIZE_CONFIRMING: 'CONFIRMING_RESIZE',
+        task_states.RESIZE_REVERTING: 'REVERTING_RESIZE',
     },
     vm_states.PAUSED: {
         'default': 'PAUSED',
