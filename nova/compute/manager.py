@@ -202,6 +202,12 @@ def reverts_task_state(function):
 
         try:
             return function(self, context, *args, **kwargs)
+        except exception.UnexpectedTaskStateError:
+            LOG.exception("Possibly task preempted.")
+            # Note(maoy): unexpected task state means the current
+            # task is preempted. Do not clear task state in this
+            # case.  
+            raise
         except Exception:
             with excutils.save_and_reraise_exception():
                 try:
@@ -726,13 +732,16 @@ class ComputeManager(manager.SchedulerDependentManager):
         self._instance_update(context, instance['uuid'],
                               host=self.host, launched_on=self.host,
                               vm_state=vm_states.BUILDING,
-                              task_state=None)
+                              task_state=None,
+                              expected_task_state=(task_states.SCHEDULING,
+                                                   None))
 
     def _allocate_network(self, context, instance, requested_networks):
         """Allocate networks for an instance and return the network info"""
         self._instance_update(context, instance['uuid'],
                               vm_state=vm_states.BUILDING,
-                              task_state=task_states.NETWORKING)
+                              task_state=task_states.NETWORKING,
+                              expected_task_state=None)
         is_vpn = instance['image_ref'] == str(FLAGS.vpn_image_id)
         try:
             # allocate and get network info
@@ -766,7 +775,9 @@ class ComputeManager(manager.SchedulerDependentManager):
         """Spawn an instance with error logging and update its power state"""
         self._instance_update(context, instance['uuid'],
                               vm_state=vm_states.BUILDING,
-                              task_state=task_states.SPAWNING)
+                              task_state=task_states.SPAWNING,
+                              expected_task_state=task_states.\
+                              BLOCK_DEVICE_MAPPING)
         try:
             self.driver.spawn(context, instance, image_meta,
                               injected_files, admin_password,
@@ -781,6 +792,7 @@ class ComputeManager(manager.SchedulerDependentManager):
                                      power_state=current_power_state,
                                      vm_state=vm_states.ACTIVE,
                                      task_state=None,
+                                     expected_task_state=task_states.SPAWNING,
                                      launched_at=timeutils.utcnow())
 
     def _notify_about_instance_usage(self, context, instance, event_suffix,
@@ -916,6 +928,8 @@ class ComputeManager(manager.SchedulerDependentManager):
         self._notify_about_instance_usage(context, instance, "delete.start")
         self._shutdown_instance(context, instance)
         self._cleanup_volumes(context, instance_uuid)
+        # if a delete task succeed, always update vm state and task state
+        # without expecting task state to be DELETING
         instance = self._instance_update(context,
                                          instance_uuid,
                                          vm_state=vm_states.DELETED,
@@ -993,6 +1007,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                               instance['uuid'],
                               power_state=current_power_state,
                               vm_state=final_state,
+                              expected_task_state=(task_states.POWERING_OFF,
+                                                   task_states.STOPPING),
                               task_state=None)
         self._notify_about_instance_usage(context, instance, "power_off.end")
 
@@ -1011,7 +1027,9 @@ class ComputeManager(manager.SchedulerDependentManager):
                               instance['uuid'],
                               power_state=current_power_state,
                               vm_state=vm_states.ACTIVE,
-                              task_state=None)
+                              task_state=None,
+                              expected_task_state=(task_states.POWERING_ON,
+                                                   task_states.STARTING))
         self._notify_about_instance_usage(context, instance, "power_on.end")
 
     @exception.wrap_exception(notifier=notifier, publisher_id=publisher_id())
@@ -1061,7 +1079,8 @@ class ComputeManager(manager.SchedulerDependentManager):
             self._instance_update(context,
                                   instance['uuid'],
                                   power_state=current_power_state,
-                                  task_state=task_states.REBUILDING)
+                                  task_state=task_states.REBUILDING,
+                                  expected_task_state=task_states.REBUILDING)
 
             network_info = self._get_instance_nw_info(context, instance)
             self.driver.destroy(instance, self._legacy_nw_info(network_info))
@@ -1069,7 +1088,8 @@ class ComputeManager(manager.SchedulerDependentManager):
             instance = self._instance_update(context,
                                   instance['uuid'],
                                   task_state=task_states.\
-                                  REBUILD_BLOCK_DEVICE_MAPPING)
+                                  REBUILD_BLOCK_DEVICE_MAPPING,
+                                  expected_task_state=task_states.REBUILDING)
 
             instance.injected_files = kwargs.get('injected_files', [])
             network_info = self.network_api.get_instance_nw_info(context,
@@ -1079,7 +1099,9 @@ class ComputeManager(manager.SchedulerDependentManager):
             instance = self._instance_update(context,
                                              instance['uuid'],
                                              task_state=task_states.\
-                                             REBUILD_SPAWNING)
+                                             REBUILD_SPAWNING,
+                                             expected_task_state=task_states.\
+                                             REBUILD_BLOCK_DEVICE_MAPPING)
             # pull in new password here since the original password isn't in
             # the db
             admin_password = kwargs.get('new_pass',
@@ -1096,6 +1118,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                                              power_state=current_power_state,
                                              vm_state=vm_states.ACTIVE,
                                              task_state=None,
+                                             expected_task_state=task_states.\
+                                             REBUILD_SPAWNING,
                                              launched_at=timeutils.utcnow())
 
             self._notify_about_instance_usage(
@@ -1195,7 +1219,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                 context, instance, "snapshot.start")
 
         self.driver.snapshot(context, instance, image_id)
-        self._instance_update(context, instance['uuid'], task_state=None)
+        self._instance_update(context, instance['uuid'], task_state=None,
+                              expected_task_state=task_states.IMAGE_SNAPSHOT)
 
         if image_type == 'snapshot' and rotation:
             raise exception.ImageRotationNotAllowed()
@@ -1287,7 +1312,9 @@ class ComputeManager(manager.SchedulerDependentManager):
 
             if current_power_state != expected_state:
                 self._instance_update(context, instance['uuid'],
-                                      task_state=None)
+                                      task_state=None,
+                                      expected_task_state=task_states.\
+                                      UPDATING_PASSWORD)
                 _msg = _('Failed to set admin password. Instance %s is not'
                          ' running') % instance["uuid"]
                 raise exception.InstancePasswordSetFailed(
@@ -1298,7 +1325,9 @@ class ComputeManager(manager.SchedulerDependentManager):
                     LOG.audit(_("Root password set"), instance=instance)
                     self._instance_update(context,
                                           instance['uuid'],
-                                          task_state=None)
+                                          task_state=None,
+                                          expected_task_state=task_states.\
+                                          UPDATING_PASSWORD)
                     break
                 except NotImplementedError:
                     # NOTE(dprince): if the driver doesn't implement
@@ -1308,9 +1337,15 @@ class ComputeManager(manager.SchedulerDependentManager):
                     LOG.warn(_msg, instance=instance)
                     self._instance_update(context,
                                           instance['uuid'],
-                                          task_state=None)
+                                          task_state=None,
+                                          expected_task_state=task_states.\
+                                          UPDATING_PASSWORD)
                     raise exception.InstancePasswordSetFailed(
                             instance=instance['uuid'], reason=_msg)
+                except exception.UnexpectedTaskStateError:
+                    # interrupted by another (most likely delete) task
+                    # do not retry
+                    raise
                 except Exception, e:
                     # Catch all here because this could be anything.
                     LOG.exception(_('set_admin_password failed: %s') % e,
@@ -1380,7 +1415,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                               instance['uuid'],
                               vm_state=vm_states.RESCUED,
                               task_state=None,
-                              power_state=current_power_state)
+                              power_state=current_power_state,
+                              expected_task_state=task_states.RESCUING)
 
     @exception.wrap_exception(notifier=notifier, publisher_id=publisher_id())
     @reverts_task_state
@@ -1405,6 +1441,7 @@ class ComputeManager(manager.SchedulerDependentManager):
                               instance['uuid'],
                               vm_state=vm_states.ACTIVE,
                               task_state=None,
+                              expected_task_state=task_states.UNRESCUING,
                               power_state=current_power_state)
 
     @exception.wrap_exception(notifier=notifier, publisher_id=publisher_id())
@@ -1521,7 +1558,9 @@ class ComputeManager(manager.SchedulerDependentManager):
                                   instance_type_id=instance_type['id'],
                                   launched_at=timeutils.utcnow(),
                                   vm_state=vm_states.ACTIVE,
-                                  task_state=None)
+                                  task_state=None,
+                                  expected_task_state=task_states.\
+                                  RESIZE_REVERTING)
 
             self.db.migration_update(context, migration_id,
                     {'status': 'reverted'})
@@ -1625,7 +1664,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                                      {'status': 'migrating'})
 
             self._instance_update(context, instance['uuid'],
-                                  task_state=task_states.RESIZE_MIGRATING)
+                                  task_state=task_states.RESIZE_MIGRATING,
+                                  expected_task_state=task_states.RESIZE_PREP)
 
             self._notify_about_instance_usage(
                 context, instance, "resize.start", network_info=network_info)
@@ -1639,7 +1679,9 @@ class ComputeManager(manager.SchedulerDependentManager):
                                      {'status': 'post-migrating'})
 
             self._instance_update(context, instance['uuid'],
-                                  task_state=task_states.RESIZE_MIGRATED)
+                                  task_state=task_states.RESIZE_MIGRATED,
+                                  expected_task_state=task_states.\
+                                  RESIZE_MIGRATING)
 
             self.compute_rpcapi.finish_resize(context, instance, migration_id,
                 image, disk_info, migration_ref['dest_compute'], reservations)
@@ -1672,7 +1714,8 @@ class ComputeManager(manager.SchedulerDependentManager):
         network_info = self._get_instance_nw_info(context, instance)
 
         self._instance_update(context, instance['uuid'],
-                              task_state=task_states.RESIZE_FINISH)
+                              task_state=task_states.RESIZE_FINISH,
+                              expected_task_state=task_states.RESIZE_MIGRATED)
 
         self._notify_about_instance_usage(
             context, instance, "finish_resize.start",
@@ -1688,7 +1731,9 @@ class ComputeManager(manager.SchedulerDependentManager):
                                          vm_state=vm_states.RESIZED,
                                          host=migration_ref['dest_compute'],
                                          launched_at=timeutils.utcnow(),
-                                         task_state=None)
+                                         task_state=None,
+                                         expected_task_state=task_states.\
+                                         RESIZE_FINISH)
 
         self.db.migration_update(context, migration_ref.id,
                                  {'status': 'finished'})
@@ -1794,7 +1839,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                               instance['uuid'],
                               power_state=current_power_state,
                               vm_state=vm_states.PAUSED,
-                              task_state=None)
+                              task_state=None,
+                              expected_task_state=task_states.PAUSING)
 
     @exception.wrap_exception(notifier=notifier, publisher_id=publisher_id())
     @reverts_task_state
@@ -1814,7 +1860,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                               instance['uuid'],
                               power_state=current_power_state,
                               vm_state=vm_states.ACTIVE,
-                              task_state=None)
+                              task_state=None,
+                              expected_task_state=task_states.UNPAUSING)
 
     @exception.wrap_exception(notifier=notifier, publisher_id=publisher_id())
     def host_power_action(self, context, host=None, action=None):
@@ -1868,7 +1915,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                               instance['uuid'],
                               power_state=current_power_state,
                               vm_state=vm_states.SUSPENDED,
-                              task_state=None)
+                              task_state=None,
+                              expected_task_state=task_states.SUSPENDING)
 
         self._notify_about_instance_usage(context, instance, 'suspend')
 
@@ -2482,7 +2530,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                               host=self.host,
                               power_state=current_power_state,
                               vm_state=vm_states.ACTIVE,
-                              task_state=None)
+                              task_state=None,
+                              expected_task_state=task_states.MIGRATING)
 
         # NOTE(vish): this is necessary to update dhcp
         self.network_api.setup_networks_on_host(context, instance, self.host)
@@ -2504,7 +2553,8 @@ class ComputeManager(manager.SchedulerDependentManager):
                               instance_ref['uuid'],
                               host=host,
                               vm_state=vm_states.ACTIVE,
-                              task_state=None)
+                              task_state=None,
+                              expected_task_state=task_states.MIGRATING)
 
         # NOTE(tr3buchet): setup networks on source host (really it's re-setup)
         self.network_api.setup_networks_on_host(context, instance_ref,
